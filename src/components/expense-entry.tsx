@@ -25,6 +25,7 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
   const [showEasterEgg, setShowEasterEgg] = useState(false);
   const [fadeOutEgg, setFadeOutEgg] = useState(false);
   const [imgSrcIndex, setImgSrcIndex] = useState(0);
+  const [cacheBust, setCacheBust] = useState<number>(0);
   const [eggCandidates, setEggCandidates] = useState<string[]>([]);
   const nisimCandidates = ['/nisim.png', '/NISIM.png', '/nisim.PNG'];
   const buksaCandidates = ['/buksa.png', '/Buksa.png', '/BUKSA.png', '/buksa.PNG'];
@@ -34,6 +35,7 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
     setImgSrcIndex(0);
     setShowEasterEgg(true);
     setFadeOutEgg(false);
+    setCacheBust(Date.now());
     setTimeout(() => setFadeOutEgg(true), 1000); // show 1s
     setTimeout(() => setShowEasterEgg(false), 2000); // then fade 1s and hide
   };
@@ -147,7 +149,7 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
       {showEasterEgg && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-transparent pointer-events-none">
           <img
-            src={eggCandidates[imgSrcIndex]}
+            src={`${eggCandidates[imgSrcIndex]}?v=${cacheBust}`}
             onError={() => setImgSrcIndex((i) => (i + 1 < eggCandidates.length ? i + 1 : i))}
             alt="ניסים"
             className={`max-w-full max-h-full object-contain transition-opacity duration-1000 ${fadeOutEgg ? 'opacity-0' : 'opacity-100'}`}
