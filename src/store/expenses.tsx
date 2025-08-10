@@ -23,6 +23,7 @@ interface ExpensesContextValue {
   spentByCategory: Record<string, number>;
   addExpense: (expense: Omit<ExpenseItem, "id" | "date"> & { date?: string }) => void;
   deleteExpense: (id: string) => void;
+  updateExpenseCategory: (id: string, category: string) => void;
   setBudget: (category: string, value: number) => void;
   setBudgets: (budgets: BudgetsMap) => void;
   renameCategory: (oldName: string, newName: string) => void;
@@ -131,6 +132,10 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setExpenses(prev => prev.filter(e => e.id !== id));
   }, []);
 
+  const updateExpenseCategory = useCallback((id: string, category: string) => {
+    setExpenses(prev => prev.map(e => (e.id === id ? { ...e, category } : e)));
+  }, []);
+
   const setBudget = useCallback((category: string, value: number) => {
     setBudgetsState(prev => ({ ...prev, [category]: Math.max(0, Math.round(value)) }));
   }, []);
@@ -199,6 +204,7 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     spentByCategory,
     addExpense,
     deleteExpense,
+    updateExpenseCategory,
     setBudget,
     setBudgets,
     renameCategory,

@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/hebrew-input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Filter, Trash2 } from 'lucide-react';
 import { useExpenses } from '@/store/expenses';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const History: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showLastMonth, setShowLastMonth] = useState(false);
-  const { expenses, lastMonthExpenses, deleteExpense } = useExpenses();
+  const { expenses, lastMonthExpenses, deleteExpense, updateExpenseCategory, budgets } = useExpenses();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('he-IL', {
@@ -85,9 +86,24 @@ const History: React.FC = () => {
                       <span className="text-lg font-semibold text-foreground">
                         {formatCurrency(expense.amount)}
                       </span>
-                      <Badge className={getCategoryColor(expense.category)}>
-                        {expense.category}
-                      </Badge>
+                      <div className="min-w-32">
+                        <Select
+                          value={expense.category}
+                          onValueChange={(v) => updateExpenseCategory(expense.id, v)}
+                          disabled={showLastMonth}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="קטגוריה" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.keys(budgets).map((cat) => (
+                              <SelectItem key={cat} value={cat} className="text-xs">
+                                {cat}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     
                     <p className="text-foreground">{expense.note}</p>
