@@ -22,6 +22,21 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showEasterEgg, setShowEasterEgg] = useState(false);
+  const [fadeOutEgg, setFadeOutEgg] = useState(false);
+  const [imgSrcIndex, setImgSrcIndex] = useState(0);
+  const [eggCandidates, setEggCandidates] = useState<string[]>([]);
+  const nisimCandidates = ['/nisim.png', '/NISIM.png', '/nisim.PNG'];
+  const buksaCandidates = ['/buksa.png', '/Buksa.png', '/BUKSA.png', '/buksa.PNG'];
+
+  const triggerEasterEgg = (candidates: string[]) => {
+    setEggCandidates(candidates);
+    setImgSrcIndex(0);
+    setShowEasterEgg(true);
+    setFadeOutEgg(false);
+    setTimeout(() => setFadeOutEgg(true), 1000); // show 1s
+    setTimeout(() => setShowEasterEgg(false), 2000); // then fade 1s and hide
+  };
   const { toast } = useToast();
   const { addExpense, budgets } = useExpenses();
 
@@ -31,6 +46,24 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
     setIsLoading(true);
     
     try {
+      // Easter eggs: "ניסים" (with/without י) and "בוקסה"
+      const containsNisim = /ניסים|נסים/.test(inputValue);
+      const containsBuksa = /בוקסה/.test(inputValue);
+      const hasNumber = /\d/.test(inputValue);
+      if ((containsNisim || containsBuksa) && !hasNumber) {
+        // Pure easter egg, do NOT process expense
+        triggerEasterEgg(containsNisim ? nisimCandidates : buksaCandidates);
+        setInputValue('');
+        return;
+      }
+      if (containsNisim) {
+        // Also show the egg alongside a real expense
+        triggerEasterEgg(nisimCandidates);
+      }
+      if (containsBuksa) {
+        triggerEasterEgg(buksaCandidates);
+      }
+
       const parsed = parseExpenseInput(inputValue);
       if (parsed.amount === null || !isFinite(parsed.amount) || parsed.amount <= 0) {
         throw new Error('לא זוהתה עלות תקינה');
@@ -108,7 +141,19 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
         </div>
       </Card>
 
-      {/* Status Line removed as requested */}
+      {/* Status Line removed as requested */
+      }
+
+      {showEasterEgg && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-transparent pointer-events-none">
+          <img
+            src={eggCandidates[imgSrcIndex]}
+            onError={() => setImgSrcIndex((i) => (i + 1 < eggCandidates.length ? i + 1 : i))}
+            alt="ניסים"
+            className={`max-w-full max-h-full object-contain transition-opacity duration-1000 ${fadeOutEgg ? 'opacity-0' : 'opacity-100'}`}
+          />
+        </div>
+      )}
 
       {/* Quick Add Buttons removed */}
     </div>
