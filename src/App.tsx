@@ -16,13 +16,13 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} forcedTheme="light" storageKey="shekel-speak-theme-v2">
       <TooltipProvider>
         <ExpensesProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <div className="min-h-screen bg-background">
+            <div className="min-h-screen bg-pattern">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/budgets" element={<Budgets />} />

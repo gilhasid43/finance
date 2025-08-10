@@ -1,12 +1,27 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/hebrew-button';
 import { Progress } from '@/components/ui/progress';
-import { Plus } from 'lucide-react';
+import { Plus, Target, TrendingUp, AlertCircle } from 'lucide-react';
 import { useExpenses } from '@/store/expenses';
+
+const budgetIcons = [Target, TrendingUp, AlertCircle, Target, TrendingUp];
 
 const Budgets: React.FC = () => {
   const { budgets, spentByCategory, totalBudget, totalSpent } = useExpenses();
+  const [floatingElements, setFloatingElements] = useState<Array<{id: number, top: number, left: number, color: string, icon: any}>>([]);
+
+  useEffect(() => {
+    // Create floating elements for the background
+    const elements = Array.from({ length: 5 }, (_, i) => ({
+      id: i,
+      top: Math.random() * 60 + 10,
+      left: Math.random() * 70 + 5,
+      color: ['#F5D565', '#B7C5FF', '#BEE8D6', '#F9B3D1', '#D9C1F0'][i],
+      icon: budgetIcons[i]
+    }));
+    setFloatingElements(elements);
+  }, []);
 
   const computed = useMemo(() => {
     return Object.entries(budgets).map(([category, budget]) => ({
@@ -31,58 +46,120 @@ const Budgets: React.FC = () => {
     return 'primary';
   };
 
-  return (
-    <div className="container py-6 pb-24">
-      <div className="space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">תקציבים</h1>
-            <p className="text-muted-foreground">נהל את התקציבים החודשיים שלך</p>
-          </div>
-          <Button size="icon" variant="outline">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </header>
+  // Function to create a darker version of a color
+  const darkenColor = (color: string, amount: number = 0.3) => {
+    // Remove # if present
+    const hex = color.replace('#', '');
+    
+    // Convert to RGB
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Darken by reducing each component
+    const darkR = Math.max(0, Math.floor(r * (1 - amount)));
+    const darkG = Math.max(0, Math.floor(g * (1 - amount)));
+    const darkB = Math.max(0, Math.floor(b * (1 - amount)));
+    
+    // Convert back to hex
+    return `#${darkR.toString(16).padStart(2, '0')}${darkG.toString(16).padStart(2, '0')}${darkB.toString(16).padStart(2, '0')}`;
+  };
 
-        <div className="space-y-4">
-          <Card className="p-4 expense-card">
+  return (
+    <div className="min-h-screen pb-28 bg-pattern flex flex-col relative">
+      {/* Floating background elements */}
+      {floatingElements.map((element) => (
+        <div
+          key={element.id}
+          className="absolute w-16 h-16 rounded-full flex items-center justify-center text-white opacity-20"
+          style={{
+            top: `${element.top}%`,
+            left: `${element.left}%`,
+            backgroundColor: element.color,
+            animation: `float-around ${8 + element.id}s ease-in-out infinite`,
+            animationDelay: `${element.id}s`
+          }}
+        >
+          <element.icon className="h-8 w-8" />
+        </div>
+      ))}
+
+      {/* Header */}
+      <div className="container pt-12 pb-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold text-foreground">תקציבים</h1>
+          <p className="text-sm opacity-90">נהל את התקציבים החודשיים שלך</p>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="container space-y-6 flex-1">
+        {/* Summary Card */}
+        <Card className="p-6" style={{ 
+          backgroundColor: '#D2FBDD', 
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
+          <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">סך תקציב חודשי</span>
               <span className="font-semibold">{formatCurrency(totalBudget)}</span>
             </div>
-            <div className="flex items-center justify-between text-sm mt-2">
+            <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">הוצא עד כה</span>
               <span className="font-semibold text-primary">{formatCurrency(totalSpent)}</span>
             </div>
-          </Card>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">נותר</span>
+              <span className="font-semibold text-success">{formatCurrency(Math.max(0, totalBudget - totalSpent))}</span>
+            </div>
+          </div>
+        </Card>
 
-          {computed.map((item) => {
+        {/* Budget Categories */}
+        <div className="space-y-4">
+          {computed.map((item, idx) => {
             const remaining = item.budget - item.spent;
             const percentage = (item.spent / item.budget) * 100;
             const progressColor = getProgressColor(item.spent, item.budget);
+            const cardColors = ['#F5D565', '#B7C5FF', '#BEE8D6', '#F9B3D1', '#D9C1F0'];
+            const currentCardColor = cardColors[idx % cardColors.length];
+            const darkerColor = darkenColor(currentCardColor, 0.4);
 
             return (
-              <Card key={item.category} className="p-4 expense-card">
+              <Card 
+                key={item.category} 
+                className="p-4 stack-card"
+                style={{ backgroundColor: currentCardColor }}
+              >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-foreground">{item.category}</h3>
+                    <h3 className="title">{item.category}</h3>
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
+                      <span className="subtitle">
                         הוצא: {formatCurrency(item.spent)}
                       </span>
-                      <span className="text-muted-foreground">
+                      <span className="subtitle">
                         תקציב: {formatCurrency(item.budget)}
                       </span>
                     </div>
 
                     <div className="relative">
-                      <Progress 
-                        value={percentage} 
-                        className="h-2"
-                      />
+                      <div 
+                        className="h-2 rounded-full overflow-hidden"
+                        style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+                      >
+                        <div 
+                          className="h-full transition-all duration-300 ease-in-out"
+                          style={{ 
+                            width: `${Math.min(100, percentage)}%`,
+                            backgroundColor: 'white'
+                          }}
+                        />
+                      </div>
                     </div>
 
                     <div className="flex justify-between items-center">

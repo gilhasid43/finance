@@ -115,7 +115,11 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
   return (
     <div className="space-y-6">
       {/* Main Input */}
-      <Card className="p-6 expense-card">
+      <Card className="p-6" style={{ 
+        backgroundColor: '#D2FBDD', 
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.2)'
+      }}>
         <div className="space-y-4">
           <Input
             type="text"
@@ -123,7 +127,11 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
             placeholder="דוגמה: 30 שקל קפה"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            className="text-lg"
+            className="text-lg yellow-input"
+            style={{ 
+              backgroundColor: '#4BA695', 
+              color: 'black'
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 handleSubmit();
@@ -136,6 +144,7 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
             disabled={!inputValue.trim() || isLoading}
             size="lg"
             className="w-full"
+            style={{ backgroundColor: '#F2BC57', opacity: 1, color: 'black' }}
           >
             <Plus className="ml-2" />
             {isLoading ? 'מוסיף הוצאה...' : 'הוסף הוצאה'}
@@ -143,8 +152,7 @@ export const ExpenseEntry: React.FC<ExpenseEntryProps> = ({
         </div>
       </Card>
 
-      {/* Status Line removed as requested */
-      }
+      {/* Status Line removed as requested */}
 
       {showEasterEgg && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-transparent pointer-events-none">

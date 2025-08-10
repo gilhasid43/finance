@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/hebrew-button';
 import { Switch } from '@/components/ui/switch';
@@ -9,15 +9,33 @@ import {
   RefreshCw, 
   Smartphone, 
   Globe,
-  Database
+  Database,
+  Settings as SettingsIcon,
+  User,
+  Shield
 } from 'lucide-react';
 import { Input } from '@/components/ui/hebrew-input';
 import { useExpenses } from '@/store/expenses';
+
+const settingsIcons = [SettingsIcon, User, Shield, SettingsIcon, User];
 
 const Settings: React.FC = () => {
   const { budgets, setBudget, setBudgets, renameCategory, deleteCategory, resetCurrentMonth } = useExpenses();
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryBudget, setNewCategoryBudget] = useState('');
+  const [floatingElements, setFloatingElements] = useState<Array<{id: number, top: number, left: number, color: string, icon: any}>>([]);
+
+  useEffect(() => {
+    // Create floating elements for the background
+    const elements = Array.from({ length: 5 }, (_, i) => ({
+      id: i,
+      top: Math.random() * 60 + 10,
+      left: Math.random() * 70 + 5,
+      color: ['#F5D565', '#B7C5FF', '#BEE8D6', '#F9B3D1', '#D9C1F0'][i],
+      icon: settingsIcons[i]
+    }));
+    setFloatingElements(elements);
+  }, []);
 
   const entries = useMemo(() => Object.entries(budgets), [budgets]);
 
@@ -31,15 +49,40 @@ const Settings: React.FC = () => {
   };
 
   return (
-    <div className="container py-6 pb-24">
-      <div className="space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold text-foreground">הגדרות</h1>
-          <p className="text-muted-foreground">נהל את העדפות האפליקציה</p>
-        </header>
+    <div className="min-h-screen pb-28 bg-pattern flex flex-col relative">
+      {/* Floating background elements */}
+      {floatingElements.map((element) => (
+        <div
+          key={element.id}
+          className="absolute w-16 h-16 rounded-full flex items-center justify-center text-white opacity-20"
+          style={{
+            top: `${element.top}%`,
+            left: `${element.left}%`,
+            backgroundColor: element.color,
+            animation: `float-around ${8 + element.id}s ease-in-out infinite`,
+            animationDelay: `${element.id}s`
+          }}
+        >
+          <element.icon className="h-8 w-8" />
+        </div>
+      ))}
 
+      {/* Header */}
+      <div className="container pt-12 pb-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold text-foreground">הגדרות</h1>
+          <p className="text-sm opacity-90">נהל את העדפות האפליקציה</p>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="container space-y-6 flex-1">
         {/* Budget categories configuration */}
-        <Card className="p-6 expense-card">
+        <Card className="p-6" style={{ 
+          backgroundColor: '#D2FBDD', 
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <Database className="h-5 w-5 text-primary" />
@@ -57,12 +100,14 @@ const Settings: React.FC = () => {
                       if (newName && newName !== category) renameCategory(category, newName);
                     }}
                     className="w-40"
+                    style={{ backgroundColor: '#4BA695', color: 'black' }}
                   />
                   <Input
                     type="number"
                     className="w-28"
                     value={String(value)}
                     onChange={(e) => setBudget(category, Number(e.target.value))}
+                    style={{ backgroundColor: '#4BA695', color: 'black' }}
                   />
                   <Badge variant="secondary">₪</Badge>
                   <Button variant="ghost" size="sm" onClick={() => deleteCategory(category)}>
@@ -78,6 +123,7 @@ const Settings: React.FC = () => {
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 className="flex-1"
+                style={{ backgroundColor: '#4BA695', color: 'black' }}
               />
               <Input
                 type="number"
@@ -85,14 +131,21 @@ const Settings: React.FC = () => {
                 value={newCategoryBudget}
                 onChange={(e) => setNewCategoryBudget(e.target.value)}
                 className="w-28"
+                style={{ backgroundColor: '#4BA695', color: 'black' }}
               />
-              <Button onClick={handleAddCategory}>הוסף</Button>
+              <Button onClick={handleAddCategory} style={{ backgroundColor: '#F2BC57', color: 'black' }}>
+                הוסף
+              </Button>
             </div>
           </div>
         </Card>
 
         {/* Monthly Settings */}
-        <Card className="p-6 expense-card">
+        <Card className="p-6" style={{ 
+          backgroundColor: '#D2FBDD', 
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-primary" />
@@ -117,7 +170,11 @@ const Settings: React.FC = () => {
         </Card>
 
         {/* Display Settings */}
-        <Card className="p-6 expense-card">
+        <Card className="p-6" style={{ 
+          backgroundColor: '#D2FBDD', 
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <Smartphone className="h-5 w-5 text-primary" />
@@ -154,10 +211,12 @@ const Settings: React.FC = () => {
           </div>
         </Card>
 
-        {/* Payment methods removed as requested */}
-
         {/* Account Actions */}
-        <Card className="p-6 expense-card">
+        <Card className="p-6" style={{ 
+          backgroundColor: '#D2FBDD', 
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
           <div className="space-y-4">
             <Button variant="destructive" className="w-full">
               <LogOut className="ml-2" />

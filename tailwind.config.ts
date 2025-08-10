@@ -17,7 +17,19 @@ export default {
 				'2xl': '1400px'
 			}
 		},
-		extend: {
+			extend: {
+				fontFamily: {
+					sans: [
+						'"M PLUS 1p"',
+						'Rubik',
+						'"Noto Sans Hebrew"',
+						'system-ui',
+						'-apple-system',
+						'"Segoe UI"',
+						'Arial',
+						'sans-serif',
+					],
+				},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
