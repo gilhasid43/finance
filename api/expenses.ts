@@ -1,8 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Node runtime (not Edge) for wider compatibility with supabase-js
-export const config = { runtime: 'nodejs' } as const;
-
 type ExpenseRow = {
   id: string;
   household_token: string;
