@@ -34,11 +34,17 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-export default async function handler(req: Request): Promise<Response> {
-  const token = getAuthToken(req);
+export default async function handler(req: any, res: any) {
+  // Authorization: Bearer <token> or ?token=<token>
+  const authHeader: string | undefined = req.headers?.authorization || req.headers?.Authorization;
+  const bearer = typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice(7).trim()
+    : null;
+  const token: string | null = bearer || (req.query?.token as string | null) || null;
   const requiredToken = process.env.HOUSEHOLD_TOKEN || process.env.VITE_HOUSEHOLD_TOKEN;
   if (!token || (requiredToken && token !== requiredToken)) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'content-type': 'application/json' } });
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
   }
 
   try {
@@ -46,81 +52,95 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (req.method === 'GET') {
       const [exp, bud] = await Promise.all([
-        supabase.from<ExpenseRow>('expenses').select('*').eq('household_token', token).order('date', { ascending: false }),
-        supabase.from<BudgetRow>('budgets').select('*').eq('household_token', token),
+        createClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_SERVICE_ROLE_KEY as string, { auth: { persistSession: false } })
+          .from<ExpenseRow>('expenses')
+          .select('*')
+          .eq('household_token', token)
+          .order('date', { ascending: false }),
+        createClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_SERVICE_ROLE_KEY as string, { auth: { persistSession: false } })
+          .from<BudgetRow>('budgets')
+          .select('*')
+          .eq('household_token', token),
       ]);
 
       if (exp.error) throw exp.error;
       if (bud.error) throw bud.error;
-
-      return new Response(
-        JSON.stringify({ expenses: exp.data ?? [], budgets: Object.fromEntries((bud.data ?? []).map(b => [b.category, b.amount])) }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      );
+      res.status(200).json({ expenses: exp.data ?? [], budgets: Object.fromEntries((bud.data ?? []).map(b => [b.category, b.amount])) });
+      return;
     }
 
     if (req.method === 'POST') {
-      const body = await req.json().catch(() => ({}));
+      const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       const action = String(body?.action || '');
 
       if (action === 'upsertExpense') {
         const e = body?.expense as Omit<ExpenseRow, 'household_token'> | undefined;
         if (!e || !e.id) {
-          return new Response(JSON.stringify({ error: 'Invalid expense payload' }), { status: 400, headers: { 'content-type': 'application/json' } });
+          res.status(400).json({ error: 'Invalid expense payload' });
+          return;
         }
         const payload: ExpenseRow = { ...e, household_token: token } as ExpenseRow;
-        const { error } = await supabase.from('expenses').upsert(payload, { onConflict: 'id' });
+        const { error } = await createClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_SERVICE_ROLE_KEY as string, { auth: { persistSession: false } })
+          .from('expenses')
+          .upsert(payload, { onConflict: 'id' });
         if (error) throw error;
-        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+        res.status(200).json({ ok: true });
+        return;
       }
 
       if (action === 'deleteExpense') {
         const id = String(body?.id || '');
-        if (!id) return new Response(JSON.stringify({ error: 'Missing id' }), { status: 400, headers: { 'content-type': 'application/json' } });
-        const { error } = await supabase.from('expenses').delete().eq('id', id).eq('household_token', token);
+        if (!id) {
+          res.status(400).json({ error: 'Missing id' });
+          return;
+        }
+        const { error } = await createClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_SERVICE_ROLE_KEY as string, { auth: { persistSession: false } })
+          .from('expenses')
+          .delete()
+          .eq('id', id)
+          .eq('household_token', token);
         if (error) throw error;
-        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+        res.status(200).json({ ok: true });
+        return;
       }
 
       if (action === 'setBudgets') {
         const budgets = body?.budgets as Record<string, number> | undefined;
         if (!budgets || typeof budgets !== 'object') {
-          return new Response(JSON.stringify({ error: 'Invalid budgets payload' }), { status: 400, headers: { 'content-type': 'application/json' } });
+          res.status(400).json({ error: 'Invalid budgets payload' });
+          return;
         }
-        // Upsert each category, then delete removed ones
+        const sb = createClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_SERVICE_ROLE_KEY as string, { auth: { persistSession: false } });
         const entries = Object.entries(budgets).map(([category, amount]) => ({ household_token: token, category, amount }));
-        const { error: upsertErr } = await supabase.from('budgets').upsert(entries as BudgetRow[], { onConflict: 'household_token,category' });
+        const { error: upsertErr } = await sb.from('budgets').upsert(entries as BudgetRow[], { onConflict: 'household_token,category' });
         if (upsertErr) throw upsertErr;
 
-        // Fetch existing categories to prune removed ones
-        // For a narrowed select, avoid passing a single generic which causes TS2558 in supabase-js v2
-        const { data: existing, error: selErr } = await supabase
+        const { data: existing, error: selErr } = await sb
           .from('budgets')
           .select('category')
           .eq('household_token', token);
         if (selErr) throw selErr;
         const keep = new Set(Object.keys(budgets));
-        const toDelete = (existing || []).filter(b => !keep.has(b.category));
+        const toDelete = (existing || []).filter((b: any) => !keep.has(b.category));
         if (toDelete.length > 0) {
-          const { error: delErr } = await supabase
+          const { error: delErr } = await sb
             .from('budgets')
             .delete()
             .eq('household_token', token)
-            .in('category', toDelete.map(b => b.category));
+            .in('category', toDelete.map((b: any) => b.category));
           if (delErr) throw delErr;
         }
-        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+        res.status(200).json({ ok: true });
+        return;
       }
 
-      return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { 'content-type': 'application/json' } });
+      res.status(400).json({ error: 'Unknown action' });
+      return;
     }
 
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405, headers: { 'content-type': 'application/json' } });
+    res.status(405).json({ error: 'Method Not Allowed' });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: 'Internal error', detail: String(err?.message || err) }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-    });
+    res.status(500).json({ error: 'Internal error', detail: String(err?.message || err) });
   }
 }
 
