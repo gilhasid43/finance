@@ -48,6 +48,19 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    // Lightweight debug to help diagnose 500s without exposing secrets
+    if ((req.query?.debug as string) === '1') {
+      res.status(200).json({
+        ok: true,
+        debug: true,
+        hasSupabaseUrl: !!process.env.SUPABASE_URL,
+        hasSupabaseServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        tokenMatches: token === requiredToken,
+        method: req.method,
+      });
+      return;
+    }
+
     const supabase = getSupabase();
 
     if (req.method === 'GET') {
