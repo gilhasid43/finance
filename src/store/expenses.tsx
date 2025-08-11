@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { deleteExpenseFromServer, fetchAllFromServer, setBudgetsOnServer, upsertExpenseToServer } from "@/lib/sync";
 
 export type PaymentMethod = "מזומן" | "כרטיס אשראי" | "העברה" | "אחר";
 
@@ -116,6 +117,29 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     saveArchive(archive);
   }, [archive]);
 
+  // Initial sync from server on mount
+  useEffect(() => {
+    (async () => {
+      const res = await fetchAllFromServer();
+      if (res.ok) {
+        setExpenses(res.expenses);
+        setBudgetsState(res.budgets);
+      }
+    })();
+  }, []);
+
+  // Background polling to catch updates from the other device
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const res = await fetchAllFromServer();
+      if (res.ok) {
+        setExpenses(res.expenses);
+        setBudgetsState(res.budgets);
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const addExpense = useCallback((expense: Omit<ExpenseItem, "id" | "date"> & { date?: string }) => {
     const newItem: ExpenseItem = {
       id: crypto.randomUUID(),
@@ -126,15 +150,20 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       note: expense.note,
     };
     setExpenses(prev => [newItem, ...prev]);
+    // Fire-and-forget sync
+    void upsertExpenseToServer(newItem as any);
   }, []);
 
   const deleteExpense = useCallback((id: string) => {
     setExpenses(prev => prev.filter(e => e.id !== id));
+    void deleteExpenseFromServer(id);
   }, []);
 
   const updateExpenseCategory = useCallback((id: string, category: string) => {
     setExpenses(prev => prev.map(e => (e.id === id ? { ...e, category } : e)));
-  }, []);
+    const toSync = expenses.find(e => e.id === id);
+    if (toSync) void upsertExpenseToServer({ ...toSync, category } as any);
+  }, [expenses]);
 
   const setBudget = useCallback((category: string, value: number) => {
     setBudgetsState(prev => ({ ...prev, [category]: Math.max(0, Math.round(value)) }));
@@ -142,6 +171,7 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const setBudgets = useCallback((newBudgets: BudgetsMap) => {
     setBudgetsState({ ...newBudgets });
+    void setBudgetsOnServer(newBudgets);
   }, []);
 
   const renameCategory = useCallback((oldName: string, newName: string) => {
