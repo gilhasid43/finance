@@ -93,7 +93,11 @@ export default async function handler(req: Request): Promise<Response> {
         if (upsertErr) throw upsertErr;
 
         // Fetch existing categories to prune removed ones
-        const { data: existing, error: selErr } = await supabase.from<BudgetRow>('budgets').select('category').eq('household_token', token);
+        // For a narrowed select, avoid passing a single generic which causes TS2558 in supabase-js v2
+        const { data: existing, error: selErr } = await supabase
+          .from('budgets')
+          .select('category')
+          .eq('household_token', token);
         if (selErr) throw selErr;
         const keep = new Set(Object.keys(budgets));
         const toDelete = (existing || []).filter(b => !keep.has(b.category));
