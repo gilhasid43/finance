@@ -31,7 +31,7 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-export default async function handler(req: any, res: any) {
+module.exports = async (req: any, res: any) => {
   // Authorization: Bearer <token> or ?token=<token>
   const authHeader: string | undefined = req.headers?.authorization || req.headers?.Authorization;
   const bearer = typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
