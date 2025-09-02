@@ -21,7 +21,9 @@ interface ExpensesContextValue {
   totalBudget: number;
   totalSpent: number;
   remainingAmount: number;
+  isOverBudget: boolean;
   spentByCategory: Record<string, number>;
+  isResetting: boolean;
   addExpense: (expense: Omit<ExpenseItem, "id" | "date"> & { date?: string }) => void;
   deleteExpense: (id: string) => void;
   updateExpenseCategory: (id: string, category: string) => void;
@@ -29,7 +31,7 @@ interface ExpensesContextValue {
   setBudgets: (budgets: BudgetsMap) => void;
   renameCategory: (oldName: string, newName: string) => void;
   deleteCategory: (name: string) => void;
-  resetCurrentMonth: () => void;
+  resetCurrentMonth: () => Promise<void>;
 }
 
 const DEFAULT_BUDGETS: BudgetsMap = {
@@ -83,8 +85,11 @@ function getMonthKey(date: Date): string {
 function getLastMonthKey(ref: Date = new Date()): string {
   const y = ref.getFullYear();
   const m = ref.getMonth(); // 0-11 current month index
-  const d = new Date(y, m - 1, 1);
-  return getMonthKey(d);
+  // Handle January (month 0) by going to December of previous year
+  if (m === 0) {
+    return `${y - 1}-12`;
+  }
+  return `${y}-${String(m).padStart(2, "0")}`;
 }
 
 function loadArchive(): MonthlyArchive {
@@ -104,6 +109,7 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [expenses, setExpenses] = useState<ExpenseItem[]>(() => loadExpenses());
   const [budgets, setBudgetsState] = useState<BudgetsMap>(() => loadBudgets());
   const [archive, setArchive] = useState<MonthlyArchive>(() => loadArchive());
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     saveExpenses(expenses);
@@ -131,6 +137,9 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Background polling to catch updates from the other device
   useEffect(() => {
     const interval = setInterval(async () => {
+      // Skip sync if we're in the middle of a reset
+      if (isResetting) return;
+      
       const res = await fetchAllFromServer();
       if (res.ok) {
         setExpenses(res.expenses);
@@ -138,7 +147,7 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isResetting]);
 
   const addExpense = useCallback((expense: Omit<ExpenseItem, "id" | "date"> & { date?: string }) => {
     const newItem: ExpenseItem = {
@@ -196,16 +205,32 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setBudgetsState(prev => ({ 'כללי': prev['כללי'] ?? 0, ...prev }));
   }, []);
 
-  const resetCurrentMonth = useCallback(() => {
-    // Move current expenses to last month archive and clear current list
-    setArchive(prev => {
-      const key = getLastMonthKey(new Date());
-      const existing = prev[key] ?? [];
-      const merged = [...expenses, ...existing];
-      return { ...prev, [key]: merged };
-    });
-    setExpenses([]);
-  }, [expenses]);
+  const resetCurrentMonth = useCallback(async () => {
+    if (isResetting) return;
+    
+    setIsResetting(true);
+    
+    try {
+      // Move current expenses to last month archive and clear current list
+      setArchive(prev => {
+        const key = getLastMonthKey(new Date());
+        const existing = prev[key] ?? [];
+        const merged = [...expenses, ...existing];
+        return { ...prev, [key]: merged };
+      });
+      
+      // Clear expenses locally
+      setExpenses([]);
+      
+      // Clear expenses from server by deleting each one
+      // This prevents the background sync from restoring them
+      for (const expense of expenses) {
+        await deleteExpenseFromServer(expense.id);
+      }
+    } finally {
+      setIsResetting(false);
+    }
+  }, [expenses, isResetting]);
 
   const spentByCategory = useMemo(() => {
     const map: Record<string, number> = {};
@@ -218,6 +243,7 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const totalBudget = useMemo(() => Object.values(budgets).reduce((a, b) => a + (b || 0), 0), [budgets]);
   const totalSpent = useMemo(() => expenses.reduce((a, b) => a + (b.amount || 0), 0), [expenses]);
   const remainingAmount = Math.max(0, totalBudget - totalSpent);
+  const isOverBudget = totalSpent > totalBudget;
 
   const lastMonthExpenses = useMemo(() => {
     const key = getLastMonthKey(new Date());
@@ -231,7 +257,9 @@ export const ExpensesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     totalBudget,
     totalSpent,
     remainingAmount,
+    isOverBudget,
     spentByCategory,
+    isResetting,
     addExpense,
     deleteExpense,
     updateExpenseCategory,

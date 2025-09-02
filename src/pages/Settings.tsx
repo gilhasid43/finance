@@ -16,11 +16,22 @@ import {
 } from 'lucide-react';
 import { Input } from '@/components/ui/hebrew-input';
 import { useExpenses } from '@/store/expenses';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const settingsIcons = [SettingsIcon, User, Shield, SettingsIcon, User];
 
 const Settings: React.FC = () => {
-  const { budgets, setBudget, setBudgets, renameCategory, deleteCategory, resetCurrentMonth } = useExpenses();
+  const { budgets, setBudget, setBudgets, renameCategory, deleteCategory, resetCurrentMonth, isResetting } = useExpenses();
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryBudget, setNewCategoryBudget] = useState('');
   const [floatingElements, setFloatingElements] = useState<Array<{id: number, top: number, left: number, color: string, icon: any}>>([]);
@@ -46,6 +57,14 @@ const Settings: React.FC = () => {
     setBudgets({ ...budgets, [name]: value });
     setNewCategoryName('');
     setNewCategoryBudget('');
+  };
+
+  const handleResetMonth = async () => {
+    try {
+      await resetCurrentMonth();
+    } catch (error) {
+      console.error('Failed to reset month:', error);
+    }
   };
 
   return (
@@ -161,10 +180,33 @@ const Settings: React.FC = () => {
                 <Calendar className="ml-2" />
                 (לא פעיל) בחר חודש לצפייה
               </Button>
-              <Button variant="warning" className="w-full" onClick={() => resetCurrentMonth()}>
-                <RefreshCw className="ml-2" />
-                אפס הוצאות חודש נוכחי
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="warning" 
+                    className="w-full" 
+                    disabled={isResetting}
+                  >
+                    <RefreshCw className={`ml-2 ${isResetting ? 'animate-spin' : ''}`} />
+                    {isResetting ? 'מאפס...' : 'אפס הוצאות חודש נוכחי'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>אפס הוצאות חודש נוכחי</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      האם אתה בטוח שברצונך לאפס את כל ההוצאות של החודש הנוכחי? 
+                      פעולה זו תעביר את ההוצאות לארכיון ולא ניתן יהיה לבטלה.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>ביטול</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleResetMonth}>
+                      אפס הוצאות
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </Card>

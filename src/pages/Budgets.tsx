@@ -95,24 +95,49 @@ const Budgets: React.FC = () => {
       {/* Content */}
       <div className="container space-y-6 flex-1">
         {/* Summary Card */}
-        <Card className="p-6" style={{ 
-          backgroundColor: '#D2FBDD', 
+        <Card className={`p-6 ${totalSpent > totalBudget ? 'border-red-500 border-2' : ''}`} style={{ 
+          backgroundColor: totalSpent > totalBudget ? '#FEE2E2' : '#D2FBDD', 
           backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
+          border: totalSpent > totalBudget ? '2px solid #EF4444' : '1px solid rgba(255, 255, 255, 0.2)'
         }}>
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">סך תקציב חודשי</span>
-              <span className="font-semibold">{formatCurrency(totalBudget)}</span>
+              <div className="flex items-center gap-2">
+                {totalSpent > totalBudget && (
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                )}
+                <span className="font-semibold">{formatCurrency(totalBudget)}</span>
+              </div>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">הוצא עד כה</span>
-              <span className="font-semibold text-primary">{formatCurrency(totalSpent)}</span>
+              <div className="flex items-center gap-2">
+                <span className={`font-semibold ${totalSpent > totalBudget ? 'text-red-500' : 'text-primary'}`}>
+                  {formatCurrency(totalSpent)}
+                </span>
+                {totalSpent > totalBudget && (
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">נותר</span>
-              <span className="font-semibold text-success">{formatCurrency(Math.max(0, totalBudget - totalSpent))}</span>
+              <span className="text-muted-foreground">
+                {totalSpent <= totalBudget ? 'נותר' : 'חריגה'}
+              </span>
+              <span className={`font-semibold ${
+                totalSpent <= totalBudget ? 'text-success' : 'text-destructive'
+              }`}>
+                {formatCurrency(Math.abs(totalBudget - totalSpent))}
+              </span>
             </div>
+            {totalSpent > totalBudget && (
+              <div className="text-center p-2 bg-red-100 rounded-lg border border-red-300">
+                <span className="text-sm text-red-700 font-medium">
+                  ⚠️ חרגת מהתקציב החודשי ב-{formatCurrency(totalSpent - totalBudget)}
+                </span>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -153,12 +178,22 @@ const Budgets: React.FC = () => {
                         style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
                       >
                         <div 
-                          className="h-full transition-all duration-300 ease-in-out"
+                          className={`h-full transition-all duration-300 ease-in-out ${
+                            percentage > 100 ? 'bg-red-500' : 'bg-white'
+                          }`}
                           style={{ 
                             width: `${Math.min(100, percentage)}%`,
-                            backgroundColor: 'white'
                           }}
                         />
+                        {percentage > 100 && (
+                          <div 
+                            className="h-full transition-all duration-300 ease-in-out bg-red-500"
+                            style={{ 
+                              width: `${Math.min(100, percentage - 100)}%`,
+                              marginLeft: '100%'
+                            }}
+                          />
+                        )}
                       </div>
                     </div>
 
